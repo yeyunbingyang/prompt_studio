@@ -21,8 +21,8 @@ if (-not $NodeOk) {
   throw "Vite 8 requires Node.js 20.19+ or 22.12+."
 }
 
-Write-Host "[1/3] Installing web/core dependencies..."
-npm install
+Write-Host "[1/3] Installing locked web/core dependencies..."
+npm ci
 
 if (-not (Test-Path ".venv")) {
   Write-Host "[2/3] Creating Python virtual environment..."
