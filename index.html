@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>提示工坊 · Prompt Studio CN V0.2</title>
+<link rel="stylesheet" href="styles.css"/>
+
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="logo">提</div><div><b>提示工坊</b><div class="small">Prompt Studio CN · V0.2</div></div></div>
+  <div class="nav-title">探索</div>
+  <button class="nav-btn active" data-page="discover"><span class="icon">✦</span>发现</button>
+  <button class="nav-btn" data-page="gallery"><span class="icon">▣</span>效果图库</button>
+  <div class="nav-title">创作</div>
+  <button class="nav-btn" data-page="builder"><span class="icon">⚡</span>提示词构建器</button>
+  <button class="nav-btn" data-page="templates"><span class="icon">▤</span>模板库</button>
+  <button class="nav-btn" data-page="workflows"><span class="icon">⌘</span>工作流</button>
+  <div class="nav-title">资源</div>
+  <button class="nav-btn" data-page="models"><span class="icon">⬡</span>模型目录</button>
+  <button class="nav-btn" data-page="assets"><span class="icon">◫</span>我的资产</button>
+  <button class="nav-btn" data-page="share"><span class="icon">⇄</span>导入 / 分享</button>
+  <div class="nav-title">系统</div>
+  <button class="nav-btn" data-page="settings"><span class="icon">⚙</span>设置</button>
+  <div class="side-foot"><div><span class="side-dot"></span><b>本地模式</b></div><div class="small" style="margin-top:5px">Prompt、模板和上传预览默认保存在当前浏览器。本原型不连接外部服务器。</div></div>
+</aside>
+<main class="main">
+
+<!-- DISCOVER -->
+<section class="page active" id="page-discover">
+  <div class="topbar"><div class="page-title"><h1>发现</h1><p>从效果开始，找到 Prompt、模板和完整工作流。</p></div><div class="actions"><button class="btn" data-go="assets">我的资产</button><button class="btn primary" data-go="builder">+ 新建创作</button></div></div>
+  <div class="hero">
+    <div class="card hero-main"><span class="badge accent">Creation Asset Studio</span><h2>不只是复制 Prompt，<br>而是保存一整套 AI 创作方法。</h2><p>效果图、Prompt、参数、模型、参考素材、工作流、版本和输出案例统一管理。支持图片、视频、3D、音频，并可导出为可分享资产。</p><div class="hero-cta"><button class="btn primary" data-go="builder">开始构建</button><button class="btn" data-go="templates">浏览模板</button><button class="btn" data-go="workflows">查看工作流</button></div></div>
+    <div class="stat-grid"><div class="card stat"><span>内置模板</span><strong id="statTemplates">12</strong><div class="small">图片 / 视频 / 3D / 音频</div></div><div class="card stat"><span>模型档案</span><strong id="statModels">18</strong><div class="small">按能力和模态分类</div></div><div class="card stat"><span>本地资产</span><strong id="statAssets">0</strong><div class="small">当前浏览器</div></div><div class="card stat"><span>工作流</span><strong>6</strong><div class="small">可复用流程</div></div></div>
+  </div>
+  <div class="section-head"><div><h2>快速入口</h2><p>按创作类型进入合适的构建器。</p></div></div>
+  <div class="chips"><button class="chip selected" data-quick="image">🖼 图片生成</button><button class="chip" data-quick="video">🎬 视频生成</button><button class="chip" data-quick="3d">🧊 3D 资产</button><button class="chip" data-quick="audio">🎵 音频</button><button class="chip" data-template-open="character-sheet">人物设定</button><button class="chip" data-template-open="storyboard">视频分镜</button><button class="chip" data-template-open="graymodel">灰模 / 人体比例</button></div>
+  <div class="section-head"><div><h2>精选创作资产</h2><p>效果图是入口，点击查看完整 Prompt 与参数。</p></div><button class="btn sm" data-go="gallery">查看全部</button></div>
+  <div class="gallery-grid" id="featuredGrid"></div>
+</section>
+
+<!-- GALLERY -->
+<section class="page" id="page-gallery">
+  <div class="topbar"><div class="page-title"><h1>效果图库</h1><p>用视觉结果检索 Prompt、模型和工作流。</p></div><button class="btn primary" data-go="builder">+ 创建资产</button></div>
+  <div class="filterbar"><input class="input search" id="gallerySearch" placeholder="搜索：电影感、三视图、运镜、产品广告……"><select class="select" id="galleryType" style="width:auto"><option value="all">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option></select><select class="select" id="gallerySort" style="width:auto"><option>推荐</option><option>最近添加</option><option>最多使用</option></select></div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</section>
+
+<!-- BUILDER -->
+<section class="page" id="page-builder">
+  <div class="topbar"><div class="page-title"><h1>提示词构建器</h1><p>视觉化参数 → Prompt → 效果参考 → 保存 Creation Asset。</p></div><div class="actions"><button class="btn" id="builderReset">重置</button><button class="btn" id="builderExport">导出当前</button><button class="btn primary" id="builderSave">保存资产</button></div></div>
+  <div class="tabs" id="modeTabs"><button class="tab active" data-mode="image">🖼 图片</button><button class="tab" data-mode="video">🎬 视频</button><button class="tab" data-mode="3d">🧊 3D</button><button class="tab" data-mode="audio">🎵 音频</button></div>
+  <div class="builder-layout" style="margin-top:13px">
+    <section class="card"><div class="card-h"><b>构建参数</b><span class="badge accent" id="builderModeBadge">图片模式</span></div><div class="card-b">
+      <div class="form-grid2"><div class="field"><label>目标模型</label><select id="modelSelect" class="select"></select></div><div class="field"><label>用途模板</label><select id="presetSelect" class="select"></select></div></div>
+      <div class="subhead"><b>主体 / 核心描述</b><span class="small">支持直接输入中文</span></div><textarea id="subjectInput" class="textarea" placeholder="描述你真正想生成的主体、场景和核心要求……"></textarea>
+
+      <div id="imageControls">
+        <div class="subhead"><b>构图 / 景别</b><span class="small">视觉选项可多选</span></div><div class="visual-options" data-opts="composition"></div>
+        <div class="subhead"><b>光线</b></div><div class="visual-options" data-opts="lighting"></div>
+        <div class="subhead"><b>风格</b></div><div class="visual-options" data-opts="style"></div>
+      </div>
+
+      <div id="videoControls" class="hidden">
+        <div class="subhead"><b>动作与摄影机</b><span class="small">视频专用结构</span></div>
+        <div class="form-grid3"><div class="field"><label>主体动作</label><input class="input" id="motionSubject" placeholder="缓慢转头、向前行走……"></div><div class="field"><label>Camera Motion</label><select class="select" id="cameraMotion"><option>固定镜头</option><option>Dolly In 推镜</option><option>Dolly Out 拉镜</option><option>Pan 横摇</option><option>Tilt 俯仰</option><option>Orbit 环绕</option><option>Crane 升降</option><option>Tracking 跟拍</option><option>Handheld 手持</option></select></div><div class="field"><label>镜头 / 焦段</label><select class="select" id="lens"><option>35mm 自然广角</option><option>50mm 标准</option><option>85mm 人像</option><option>24mm 广角</option><option>100mm 长焦</option></select></div></div>
+        <div class="form-grid3" style="margin-top:9px"><div class="field"><label>运动速度</label><select class="select" id="motionSpeed"><option>缓慢</option><option>自然</option><option>快速</option><option>速度渐变</option></select></div><div class="field"><label>镜头时长</label><select class="select" id="duration"><option>5 秒</option><option>8 秒</option><option>10 秒</option><option>15 秒</option></select></div><div class="field"><label>画幅</label><select class="select" id="aspect"><option>16:9</option><option>9:16</option><option>1:1</option><option>2.39:1</option></select></div></div>
+        <div class="subhead"><b>环境 / 时间变化</b></div><textarea class="textarea" id="envMotion" style="min-height:75px" placeholder="风吹头发、窗帘轻动、云层移动、灯光逐渐变暗……"></textarea>
+        <div class="form-grid2" style="margin-top:9px"><div class="field"><label>开始状态</label><input class="input" id="firstState" placeholder="角色看向窗外……"></div><div class="field"><label>结束状态</label><input class="input" id="lastState" placeholder="角色转身面向镜头……"></div></div>
+        <div class="subhead"><b>声音 / 对白</b></div><textarea class="textarea" id="audioDesc" style="min-height:75px" placeholder="环境音、音乐、对白、口型要求……"></textarea>
+      </div>
+
+      <div id="threeDControls" class="hidden"><div class="subhead"><b>3D 输出控制</b></div><div class="form-grid3"><div class="field"><label>输出类型</label><select class="select" id="meshType"><option>完整模型</option><option>角色灰模</option><option>产品硬表面</option><option>雕塑 / 手办</option></select></div><div class="field"><label>拓扑</label><select class="select" id="topology"><option>自动</option><option>低模</option><option>中模</option><option>高模</option></select></div><div class="field"><label>材质</label><select class="select" id="material"><option>PBR</option><option>灰模</option><option>手绘</option><option>无材质</option></select></div></div></div>
+      <div id="audioControls" class="hidden"><div class="subhead"><b>音频控制</b></div><div class="form-grid3"><div class="field"><label>类型</label><select class="select" id="audioType"><option>音乐</option><option>配乐</option><option>环境音</option><option>音效</option><option>旁白</option></select></div><div class="field"><label>情绪</label><select class="select" id="audioMood"><option>平静</option><option>史诗</option><option>神秘</option><option>温暖</option><option>紧张</option></select></div><div class="field"><label>速度</label><select class="select" id="bpm"><option>慢速</option><option>中速</option><option>快速</option></select></div></div></div>
+
+      <div class="subhead"><b>参考 / 效果图</b><span class="small">可插入本地图片；演示版保存在浏览器</span></div><div class="preview-uploader" id="mainUploader"><div class="upload-hint">点击上传主效果图 / 参考图<br><span class="small">PNG / JPG / WEBP</span></div><img id="mainPreview" class="hidden" alt="preview"></div><input type="file" id="mainFile" class="hidden" accept="image/*"><div class="thumb-strip" id="refStrip"><div class="thumb" data-ref="0">+ Ref A</div><div class="thumb" data-ref="1">+ Ref B</div><div class="thumb" data-ref="2">+ Ref C</div><div class="thumb" data-ref="3">+ Ref D</div></div><input type="file" id="refFile" class="hidden" accept="image/*">
+      <div class="subhead"><b>约束 / Negative Prompt</b></div><textarea id="negativeInput" class="textarea" style="min-height:90px" placeholder="不希望出现的内容、结构错误、身份漂移、畸形、低质量……"></textarea>
+      <div class="subhead"><b>补充参数</b></div><textarea id="extraInput" class="textarea" style="min-height:75px" placeholder="画质、比例、色彩、模型专用指令、工作流备注……"></textarea>
+    </div></section>
+
+    <aside><section class="card sticky"><div class="card-h"><b>Prompt 输出</b><button class="btn sm" id="copyPrompt">复制</button></div><div class="card-b"><div class="switch"><button class="active" data-lang="zh">中文版</button><button data-lang="en">英文版</button></div><div class="sep"></div><div class="prompt-output" id="promptOutput">从左侧开始选择参数。</div><div class="meta-grid"><div class="meta-box">模式：<b id="metaMode">图片</b></div><div class="meta-box">模型：<b id="metaModel">—</b></div><div class="meta-box">模板：<b id="metaPreset">—</b></div><div class="meta-box">版本：<b>V0.2</b></div></div><div class="sep"></div><div class="field"><label>Creation Asset 名称</label><input class="input" id="assetName" value="未命名创作资产"></div><div class="small" style="margin-top:8px">保存内容：Prompt、参数、模型、效果图、参考图和基础元数据。</div></div></section></aside>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="page" id="page-templates">
+  <div class="topbar"><div class="page-title"><h1>模板库</h1><p>把常用 AI 创作方法封装成可复用参数模板。</p></div><button class="btn primary" id="newTemplateBtn">+ 新建模板</button></div>
+  <div class="filterbar"><input class="input search" id="templateSearch" placeholder="搜索模板……"><select class="select" id="templateType" style="width:auto"><option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option></select></div><div class="template-grid" id="templateGrid"></div>
+</section>
+
+<!-- MODELS -->
+<section class="page" id="page-models">
+  <div class="topbar"><div class="page-title"><h1>模型目录</h1><p>不是模型排行榜，而是“这个模型适合什么 Prompt 结构”的知识库。</p></div><button class="btn">+ 添加本地模型档案</button></div>
+  <div class="filterbar"><input class="input search" id="modelSearch" placeholder="搜索模型、能力或标签……"><select class="select" id="modelType" style="width:auto"><option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option></select></div><div class="model-grid" id="modelGrid"></div>
+</section>
+
+<!-- WORKFLOWS -->
+<section class="page" id="page-workflows">
+  <div class="topbar"><div class="page-title"><h1>工作流</h1><p>Prompt 不再是终点：参考图、模型、生成、筛选、修复和视频化可以组成流程。</p></div><button class="btn primary" id="newWorkflowBtn">+ 新建工作流</button></div>
+  <div class="workflow-grid" id="workflowGrid"></div>
+  <div class="section-head"><div><h2>工作流编辑器 · 概念预览</h2><p>V0.2 先展示节点设计；后续可接 ComfyUI workflow.json。</p></div><span class="badge green">Local Workflow</span></div>
+  <div class="workflow-canvas">
+    <div class="node" style="left:35px;top:65px"><div class="node-head">📷 Reference Input</div><div class="node-body"><span class="port"></span>CHARACTER_MASTER<br>+ style reference</div></div>
+    <div class="node" style="left:290px;top:50px"><div class="node-head">✦ Prompt Asset</div><div class="node-body"><span class="port"></span>Template + Variables<br>Model profile</div></div>
+    <div class="node" style="left:545px;top:85px"><div class="node-head">⚡ Image Generation</div><div class="node-body"><span class="port"></span>Image model<br>Generate candidates</div></div>
+    <div class="node" style="left:795px;top:55px"><div class="node-head">✓ Review / Select</div><div class="node-body"><span class="port"></span>Pick output<br>Save example</div></div>
+    <div class="node" style="left:795px;top:225px"><div class="node-head">🎬 Image → Video</div><div class="node-body"><span class="port"></span>Camera + Motion<br>Video prompt</div></div>
+    <div class="wire" style="left:215px;top:104px;width:90px;transform:rotate(-6deg)"></div><div class="wire" style="left:470px;top:104px;width:95px;transform:rotate(7deg)"></div><div class="wire" style="left:725px;top:112px;width:86px;transform:rotate(-6deg)"></div><div class="wire" style="left:890px;top:165px;width:80px;transform:rotate(83deg)"></div>
+  </div>
+</section>
+
+<!-- ASSETS -->
+<section class="page" id="page-assets">
+  <div class="topbar"><div class="page-title"><h1>我的资产</h1><p>本地 Prompt、效果图、参考图和工作流入口。</p></div><div class="actions"><button class="btn" id="assetsImportBtn">导入</button><button class="btn" id="assetsExportAll">导出全部</button><button class="btn primary" data-go="builder">+ 新建资产</button></div></div>
+  <div class="assets-toolbar"><div class="filterbar" style="margin:0;flex:1"><input class="input search" id="assetSearch" placeholder="搜索本地资产……"><select class="select" id="assetType" style="width:auto"><option value="all">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option></select></div><div class="view-toggle"><button class="active" data-view="grid">▦</button><button data-view="list">☷</button></div></div>
+  <div id="assetsGrid" class="gallery-grid"></div><div id="assetsList" class="card hidden"><div class="card-b" style="padding-top:4px"><table class="asset-table"><thead><tr><th>预览</th><th>名称</th><th>类型</th><th>模型</th><th>模板</th><th>时间</th><th></th></tr></thead><tbody id="assetTableBody"></tbody></table></div></div>
+</section>
+
+<!-- SHARE -->
+<section class="page" id="page-share">
+  <div class="topbar"><div class="page-title"><h1>导入 / 分享</h1><p>把 Creation Asset 导出为 JSON 文件或分享码。</p></div></div>
+  <div class="share-grid"><section class="card"><div class="card-h"><b>导出分享</b><span class="badge">.aipack.json</span></div><div class="card-b"><div class="field"><label>选择本地资产</label><select class="select" id="shareAssetSelect"></select></div><div class="card-actions"><button class="btn primary" id="downloadShare">下载 JSON</button><button class="btn" id="makeShareCode">生成分享码</button></div><div class="subhead"><b>分享码</b></div><div class="codebox" id="shareCode">选择一个资产后生成。</div><button class="btn sm" id="copyShareCode" style="margin-top:8px">复制分享码</button></div></section>
+  <section class="card"><div class="card-h"><b>导入资产</b><span class="badge green">Local</span></div><div class="card-b"><div class="dropzone" id="importDrop">拖入 .json 文件<br>或点击选择文件<br><span class="small">也可以在下方粘贴分享码</span></div><input type="file" id="shareFile" class="hidden" accept="application/json,.json"><textarea class="textarea" id="importCode" style="margin-top:10px" placeholder="粘贴分享码……"></textarea><button class="btn primary" id="importCodeBtn" style="margin-top:8px">从分享码导入</button></div></section></div>
+  <div class="section-head"><div><h2>未来的 CreationPack</h2><p>正式版可升级为压缩资产包，而不只是一条 Prompt。</p></div></div><div class="card"><div class="card-b"><pre style="margin:0;color:#bac5d6;overflow:auto">asset.aipack/
+├─ manifest.json
+├─ cover.webp
+├─ prompts/
+│  ├─ image.md
+│  ├─ video.md
+│  └─ negative.md
+├─ parameters.json
+├─ refs/
+├─ examples/
+├─ workflow/
+│  └─ comfyui.json
+└─ versions/</pre></div></div>
+</section>
+
+<!-- SETTINGS -->
+<section class="page" id="page-settings">
+  <div class="topbar"><div class="page-title"><h1>设置</h1><p>本地存储、编辑器和分享行为。</p></div><button class="btn primary" id="saveSettings">保存设置</button></div>
+  <section class="card"><div class="card-h"><b>本地与隐私</b><span class="badge green">Local First</span></div><div class="card-b">
+    <div class="setting-row"><div><b>默认本地保存</b><p>新建资产只写入当前浏览器 LocalStorage。</p></div><button class="toggle on" data-setting="local"></button></div>
+    <div class="setting-row"><div><b>自动保存草稿</b><p>构建器修改时保存一份临时草稿。</p></div><button class="toggle on" data-setting="autosave"></button></div>
+    <div class="setting-row"><div><b>保存上传的预览图</b><p>图片以 Data URL 形式保存，过多图片可能触发浏览器容量限制。</p></div><button class="toggle on" data-setting="images"></button></div>
+  </div></section>
+  <section class="card" style="margin-top:14px"><div class="card-h"><b>编辑器</b></div><div class="card-b"><div class="setting-row"><div><b>默认 Prompt 语言</b><p>打开 Builder 时默认使用的输出语言。</p></div><select class="select" id="defaultLang" style="width:180px"><option value="zh">中文</option><option value="en">英文</option></select></div><div class="setting-row"><div><b>默认创作模态</b><p>打开 Builder 时默认进入。</p></div><select class="select" id="defaultMode" style="width:180px"><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option></select></div></div></section>
+  <section class="card" style="margin-top:14px"><div class="card-h"><b>数据维护</b></div><div class="card-b"><div class="actions"><button class="btn" id="backupBtn">备份全部数据</button><button class="btn" id="restoreBtn">恢复备份</button><button class="btn danger" id="wipeAll">清空本地数据</button></div><input type="file" id="restoreFile" class="hidden" accept="application/json,.json"></div></section>
+</section>
+
+</main></div>
+
+<div class="modal" id="detailModal"><div class="modal-card"><div class="modal-head"><b id="modalTitle">详情</b><button class="btn sm" id="modalClose">关闭</button></div><div class="modal-body" id="modalBody"></div></div></div>
+<div class="status" id="status"></div>
+<input type="file" id="assetImportFile" class="hidden" accept="application/json,.json">
+<script src="data.js"></script>
+<script src="core.js"></script>
+<script src="library.js"></script>
+
+</body>
+</html>
