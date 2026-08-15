@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.1 - Prototype Parity
+
+### Added
+- 正式 React 应用迁入 V0.2 的 9 页面信息架构。
+- 发现页、效果图库、模板库、模型目录和工作流目录。
+- 图片 / 视频 / 3D / 音频多模态 Prompt Builder。
+- 图片构图 / 光线 / 风格视觉参数卡。
+- 视频 Camera Motion、Lens、速度、时长、画幅、开始/结束状态、声音/对白控制。
+- 主效果图 / 主参考图与 Ref A–D 会话预览。
+- 中文 / English 实时 Prompt、复制、重置和 `.aipack.json` 导出。
+- Creation Asset SQLite 保存、详情、筛选、Grid/List、归档、恢复、删除和重新载入 Builder。
+- 离线 Share Code、JSON 导入、全部资产备份与恢复导入。
+- 设置页默认语言 / 默认模态 / 自动草稿恢复 / 本地数据清理。
+
+### Changed
+- V0.3 从 Engineering Skeleton 进入 Prototype Parity 阶段。
+- V0.2 的 LocalStorage 资产保存改为正式 SQLite Creation Asset。
+- 参考图不再作为大块 Base64 数据写入 SQLite；正式媒体持久化继续按 `.prompt-studio/media/` 架构推进。
+
+### Validation
+- 每个功能切片独立提交并触发 GitHub Actions。
+- Web/Core：`npm ci`、TypeScript typecheck、Vitest、production build 均通过。
+- API：依赖安装与 pytest 均通过。
+
 ## 0.3.0 - Engineering Skeleton
 
 ### Added

@@ -1,4 +1,5 @@
 import type {
+  AssetStatus,
   CreationAssetDetail,
   CreationAssetSummary,
   Modality
@@ -21,6 +22,12 @@ export type CreateAssetInput = {
   negative_prompt?: string;
 };
 
+export type UpdateAssetInput = {
+  title?: string;
+  description?: string;
+  status?: AssetStatus;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (!headers.has("Content-Type")) {
@@ -37,6 +44,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(detail || `HTTP ${response.status}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json() as Promise<T>;
 }
 
@@ -51,5 +61,12 @@ export const api = {
     request<CreationAssetDetail>("/assets", {
       method: "POST",
       body: JSON.stringify(payload)
-    })
+    }),
+  updateAsset: (id: string, payload: UpdateAssetInput) =>
+    request<CreationAssetDetail>(`/assets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  deleteAsset: (id: string) =>
+    request<void>(`/assets/${id}`, { method: "DELETE" })
 };
