@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { CreationAssetSummary } from "@prompt-studio/core";
 import { api, type Health } from "./api/client";
+import { AssetDetailModal } from "./components/AssetDetailModal";
 import { PromptBuilder } from "./components/PromptBuilder";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { SharePanel } from "./components/SharePanel";
 import {
   FEATURED,
   MODELS,
@@ -23,7 +27,7 @@ function PageHeader({
   eyebrow: string;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <header className="page-header">
@@ -56,6 +60,7 @@ export default function App() {
   const [modelType, setModelType] = useState<"all" | StudioMode>("all");
   const [search, setSearch] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplatePreset | null>(null);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const refreshAssets = useCallback(async (query = "") => {
@@ -207,9 +212,13 @@ export default function App() {
           <>
             <PageHeader eyebrow="EFFECT FIRST" title="效果图库" description="先看结果，再进入模板或 Builder 复用生成方法。" />
             <div className="toolbar">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索效果、标签或说明" />
-              <select value={galleryType} onChange={(e) => setGalleryType(e.target.value as "all" | StudioMode)}>
-                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索效果、标签或说明" />
+              <select value={galleryType} onChange={(event) => setGalleryType(event.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option>
+                <option value="image">图片</option>
+                <option value="video">视频</option>
+                <option value="3d">3D</option>
+                <option value="audio">音频</option>
               </select>
             </div>
             <div className="card-grid">
@@ -222,10 +231,15 @@ export default function App() {
                     <p>{item.desc}</p>
                     <small>模板：{item.template}</small>
                     <div className="card-actions">
-                      <button className="primary compact" onClick={() => {
-                        const template = TEMPLATES.find((x) => x.name === item.template);
-                        if (template) useTemplate(template);
-                      }}>用此效果创作</button>
+                      <button
+                        className="primary compact"
+                        onClick={() => {
+                          const template = TEMPLATES.find((candidate) => candidate.name === item.template);
+                          if (template) useTemplate(template);
+                        }}
+                      >
+                        用此效果创作
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -245,9 +259,13 @@ export default function App() {
           <>
             <PageHeader eyebrow="REUSABLE STRUCTURES" title="模板库" description="12 套 V0.2 内置模板已经迁入正式应用。" />
             <div className="toolbar">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索模板或标签" />
-              <select value={templateType} onChange={(e) => setTemplateType(e.target.value as "all" | StudioMode)}>
-                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索模板或标签" />
+              <select value={templateType} onChange={(event) => setTemplateType(event.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option>
+                <option value="image">图片</option>
+                <option value="video">视频</option>
+                <option value="3d">3D</option>
+                <option value="audio">音频</option>
               </select>
             </div>
             <div className="card-grid">
@@ -301,9 +319,13 @@ export default function App() {
           <>
             <PageHeader eyebrow="MODEL PROFILES" title="模型目录" description="模型档案用于决定 Prompt 结构和能力提示，不直接等同于 API 连接状态。" />
             <div className="toolbar">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索模型或能力" />
-              <select value={modelType} onChange={(e) => setModelType(e.target.value as "all" | StudioMode)}>
-                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索模型或能力" />
+              <select value={modelType} onChange={(event) => setModelType(event.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option>
+                <option value="image">图片</option>
+                <option value="video">视频</option>
+                <option value="3d">3D</option>
+                <option value="audio">音频</option>
               </select>
             </div>
             <div className="model-grid">
@@ -323,7 +345,7 @@ export default function App() {
           <>
             <PageHeader eyebrow="SQLITE LOCAL LIBRARY" title="我的资产" description="这里展示已经真正写入本地 SQLite 的 Creation Asset。" />
             <div className="toolbar">
-              <input value={assetQuery} onChange={(e) => setAssetQuery(e.target.value)} placeholder="搜索标题或说明" />
+              <input value={assetQuery} onChange={(event) => setAssetQuery(event.target.value)} placeholder="搜索标题或说明" />
               <button className="ghost" onClick={() => refreshAssets(assetQuery)}>搜索</button>
               <button className="primary compact" onClick={() => setPage("builder")}>新建资产</button>
             </div>
@@ -332,7 +354,7 @@ export default function App() {
             ) : (
               <div className="asset-grid">
                 {assets.map((asset) => (
-                  <article className="asset-card" key={asset.id}>
+                  <article className="asset-card" key={asset.id} onClick={() => setSelectedAssetId(asset.id)}>
                     <div className={`asset-cover modality-${asset.modality}`}><span>{asset.modality.toUpperCase()}</span></div>
                     <div className="asset-body">
                       <span className="eyebrow">{asset.status}</span>
@@ -349,22 +371,22 @@ export default function App() {
 
         {page === "share" && (
           <>
-            <PageHeader eyebrow="PORTABLE CREATION ASSETS" title="导入 / 分享" description="下一提交接入 JSON 导出、Share Code、备份和恢复。" />
-            <section className="panel placeholder-panel"><h2>Creation Pack</h2><p>资产结构已经由 JSON Schema 定义；UI 会继续迁移原型的离线分享能力。</p></section>
+            <PageHeader eyebrow="PORTABLE CREATION ASSETS" title="导入 / 分享" description="通过 JSON、Share Code 和本地备份迁移 Creation Asset。" />
+            <SharePanel assets={assets} onImported={() => refreshAssets()} />
           </>
         )}
 
         {page === "settings" && (
           <>
-            <PageHeader eyebrow="LOCAL PREFERENCES" title="设置" description="下一提交迁移原型的语言、默认模态、草稿和备份设置。" />
-            <section className="panel placeholder-panel"><h2>Local First</h2><p>用户数据仍然保存在本地 SQLite 与本地媒体目录，不自动上传。</p></section>
+            <PageHeader eyebrow="LOCAL PREFERENCES" title="设置" description="设置默认 Prompt 语言、Builder 模态和浏览器侧草稿策略。" />
+            <SettingsPanel />
           </>
         )}
       </main>
 
       {selectedTemplate && page !== "builder" && (
         <div className="modal-backdrop" onClick={() => setSelectedTemplate(null)}>
-          <section className="modal" onClick={(e) => e.stopPropagation()}>
+          <section className="modal" onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" onClick={() => setSelectedTemplate(null)}>×</button>
             <div className="catalog-icon large">{selectedTemplate.icon}</div>
             <span className="eyebrow">{selectedTemplate.type} · {selectedTemplate.preset}</span>
@@ -377,6 +399,12 @@ export default function App() {
           </section>
         </div>
       )}
+
+      <AssetDetailModal
+        assetId={selectedAssetId}
+        onClose={() => setSelectedAssetId(null)}
+        onDeleted={() => refreshAssets()}
+      />
     </div>
   );
 }
