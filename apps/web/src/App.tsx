@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CreationAssetSummary } from "@prompt-studio/core";
 import { api, type Health } from "./api/client";
+import { PromptBuilder } from "./components/PromptBuilder";
 import {
   FEATURED,
   MODELS,
@@ -235,12 +236,8 @@ export default function App() {
 
         {page === "builder" && (
           <>
-            <PageHeader eyebrow="VISUAL PROMPT BUILDER" title="提示词构建器" description="下一提交将把图片 / 视频 / 3D / 音频的原型 Builder 全量迁入这里。" />
-            <section className="panel placeholder-panel">
-              <span className="badge">迁移中</span>
-              <h2>{selectedTemplate ? `已选择模板：${selectedTemplate.name}` : "多模态 Builder"}</h2>
-              <p>当前页面壳已经进入正式 React 应用；下一步会加入模型、预设、视觉卡片、视频运镜、3D、音频、实时 Prompt 与 SQLite 保存。</p>
-            </section>
+            <PageHeader eyebrow="VISUAL PROMPT BUILDER" title="提示词构建器" description="图片 / 视频 / 3D / 音频共用一个 Creation Asset Builder，参数会实时组合为 Prompt。" />
+            <PromptBuilder template={selectedTemplate} onSaved={() => refreshAssets()} />
           </>
         )}
 
