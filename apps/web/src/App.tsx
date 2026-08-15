@@ -1,57 +1,113 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import type { CreationAssetSummary, Modality } from "@prompt-studio/core";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CreationAssetSummary } from "@prompt-studio/core";
 import { api, type Health } from "./api/client";
+import {
+  FEATURED,
+  MODELS,
+  NAV_ITEMS,
+  TEMPLATES,
+  WORKFLOWS,
+  type StudioMode,
+  type TemplatePreset
+} from "./data/catalog";
 
-const modalities: Modality[] = ["image", "video", "3d", "audio", "text"];
+type PageId = (typeof NAV_ITEMS)[number][0];
+
+function PageHeader({
+  eyebrow,
+  title,
+  description,
+  action
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <header className="page-header">
+      <div>
+        <span className="eyebrow">{eyebrow}</span>
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
+      </div>
+      {action}
+    </header>
+  );
+}
+
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="empty">
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
 
 export default function App() {
+  const [page, setPage] = useState<PageId>("discover");
   const [health, setHealth] = useState<Health | null>(null);
   const [assets, setAssets] = useState<CreationAssetSummary[]>([]);
-  const [query, setQuery] = useState("");
-  const [title, setTitle] = useState("");
-  const [modality, setModality] = useState<Modality>("image");
-  const [prompt, setPrompt] = useState("");
+  const [assetQuery, setAssetQuery] = useState("");
+  const [galleryType, setGalleryType] = useState<"all" | StudioMode>("all");
+  const [templateType, setTemplateType] = useState<"all" | StudioMode>("all");
+  const [modelType, setModelType] = useState<"all" | StudioMode>("all");
+  const [search, setSearch] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplatePreset | null>(null);
   const [error, setError] = useState("");
 
-  const refreshAssets = useCallback(async (search: string) => {
+  const refreshAssets = useCallback(async (query = "") => {
     try {
       setError("");
-      setAssets(await api.listAssets(search));
+      setAssets(await api.listAssets(query));
     } catch (err) {
       setError(err instanceof Error ? err.message : "读取资产失败");
     }
   }, []);
 
   useEffect(() => {
-    api.health()
-      .then(setHealth)
-      .catch(() => setHealth(null));
-    refreshAssets("");
+    api.health().then(setHealth).catch(() => setHealth(null));
+    refreshAssets();
   }, [refreshAssets]);
 
-  async function handleCreate(event: FormEvent) {
-    event.preventDefault();
-    if (!title.trim()) return;
+  const filteredFeatured = useMemo(
+    () =>
+      FEATURED.filter(
+        (item) =>
+          (galleryType === "all" || item.type === galleryType) &&
+          `${item.name} ${item.desc} ${item.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase())
+      ),
+    [galleryType, search]
+  );
 
-    try {
-      setError("");
-      await api.createAsset({
-        title: title.trim(),
-        modality,
-        positive_prompt: prompt.trim()
-      });
-      setTitle("");
-      setPrompt("");
-      await refreshAssets("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "创建失败");
-    }
+  const filteredTemplates = useMemo(
+    () =>
+      TEMPLATES.filter(
+        (item) =>
+          (templateType === "all" || item.type === templateType) &&
+          `${item.name} ${item.desc} ${item.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase())
+      ),
+    [templateType, search]
+  );
+
+  const filteredModels = useMemo(
+    () =>
+      MODELS.filter(
+        (item) =>
+          (modelType === "all" || item.type === modelType) &&
+          `${item.name} ${item.desc} ${item.abilities.join(" ")}`.toLowerCase().includes(search.toLowerCase())
+      ),
+    [modelType, search]
+  );
+
+  function openTemplate(template: TemplatePreset) {
+    setSelectedTemplate(template);
   }
 
-  async function handleSearch(event: FormEvent) {
-    event.preventDefault();
-    await refreshAssets(query);
+  function useTemplate(template: TemplatePreset) {
+    setSelectedTemplate(template);
+    setPage("builder");
   }
 
   return (
@@ -61,157 +117,269 @@ export default function App() {
           <div className="brand-mark">PS</div>
           <div>
             <strong>Prompt Studio</strong>
-            <span>V0.3 Engineering</span>
+            <span>V0.3 · Prototype Parity</span>
           </div>
         </div>
 
         <nav>
-          <button className="nav-item active">◫ 工作台</button>
-          <button className="nav-item">✦ 发现 <em>后续</em></button>
-          <button className="nav-item">⚡ 构建器 <em>后续</em></button>
-          <button className="nav-item">▤ 模板 <em>后续</em></button>
-          <button className="nav-item">⌘ 工作流 <em>后续</em></button>
+          {NAV_ITEMS.map(([id, icon, label]) => (
+            <button
+              key={id}
+              className={`nav-item ${page === id ? "active" : ""}`}
+              onClick={() => {
+                setPage(id);
+                setSearch("");
+              }}
+            >
+              <span>{icon}</span>
+              {label}
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-status">
           <span className={health ? "dot online" : "dot"} />
           <div>
             <strong>{health ? "Local API 已连接" : "Local API 未连接"}</strong>
-            <small>{health ? `API ${health.version}` : "请启动 apps/api"}</small>
+            <small>{health ? `API ${health.version}` : "双击 start.bat 启动"}</small>
           </div>
         </div>
       </aside>
 
       <main>
-        <header className="topbar">
-          <div>
-            <span className="eyebrow">LOCAL-FIRST CREATION ASSET STUDIO</span>
-            <h1>工程底座已接通</h1>
-          </div>
-          <div className="status-pill">
-            SQLite · {health ? "Ready" : "Offline"}
-          </div>
-        </header>
+        <div className="topline">
+          <div className="breadcrumbs">Prompt Studio / {NAV_ITEMS.find(([id]) => id === page)?.[2]}</div>
+          <div className="status-pill">SQLite · {health ? "Ready" : "Offline"}</div>
+        </div>
 
         {error && <div className="error-banner">{error}</div>}
 
-        <section className="hero-grid">
-          <article className="panel create-panel">
-            <div className="panel-heading">
-              <div>
-                <span className="eyebrow">QUICK CREATE</span>
-                <h2>新建 Creation Asset</h2>
-              </div>
-              <span className="badge">P0</span>
-            </div>
-
-            <form onSubmit={handleCreate}>
-              <label>
-                标题
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="例如：电影感雨夜人像"
-                />
-              </label>
-
-              <label>
-                模态
-                <select
-                  value={modality}
-                  onChange={(event) =>
-                    setModality(event.target.value as Modality)
-                  }
-                >
-                  {modalities.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
+        {page === "discover" && (
+          <>
+            <PageHeader
+              eyebrow="LOCAL-FIRST AI CREATION WORKBENCH"
+              title="从效果出发，保存完整创作方法"
+              description="Prompt、参数、模型、参考图、Workflow 和输出案例统一组织为 Creation Asset。"
+              action={<button className="primary compact" onClick={() => setPage("builder")}>开始创作</button>}
+            />
+            <section className="hero-card">
+              <div className="hero-copy">
+                <span className="badge">V0.3 正式应用</span>
+                <h2>不是 Prompt 收藏夹，而是可复用的 AI 创作资产库。</h2>
+                <p>沿用 V0.2 原型的信息架构，同时把资产保存真正接入 SQLite，本地优先、不依赖云端账号。</p>
+                <div className="quick-links">
+                  {["图片生成", "视频生成", "3D 资产", "音频", "人物设定", "视频分镜", "灰模 / 人体比例"].map((item) => (
+                    <button key={item} onClick={() => setPage("builder")}>{item}</button>
                   ))}
-                </select>
-              </label>
-
-              <label>
-                Base Prompt
-                <textarea
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="先写一个基础 Prompt，后续 Template Builder 会接管结构化参数。"
-                  rows={5}
-                />
-              </label>
-
-              <button className="primary" type="submit">
-                创建并写入 SQLite
-              </button>
-            </form>
-          </article>
-
-          <article className="panel architecture-panel">
-            <div className="panel-heading">
-              <div>
-                <span className="eyebrow">BOUNDARIES</span>
-                <h2>V0.3 分层</h2>
+                </div>
               </div>
-            </div>
-            <div className="flow">
-              <div><strong>React UI</strong><span>apps/web</span></div>
-              <b>→</b>
-              <div><strong>FastAPI</strong><span>apps/api</span></div>
-              <b>→</b>
-              <div><strong>SQLite</strong><span>.prompt-studio</span></div>
-            </div>
-            <div className="flow secondary">
-              <div><strong>Domain Core</strong><span>packages/core</span></div>
-              <b>→</b>
-              <div><strong>Adapters</strong><span>integrations</span></div>
-            </div>
-            <p className="muted">
-              ComfyUI、远端模型、媒体处理都从 Adapter 接入，不反向污染 Creation Asset 核心模型。
-            </p>
-          </article>
-        </section>
+              <div className="stats-grid">
+                <div><strong>{TEMPLATES.length}</strong><span>内置模板</span></div>
+                <div><strong>{MODELS.length}</strong><span>模型档案</span></div>
+                <div><strong>{WORKFLOWS.length}</strong><span>工作流</span></div>
+                <div><strong>{assets.length}</strong><span>本地资产</span></div>
+              </div>
+            </section>
 
-        <section className="panel library-panel">
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">LOCAL LIBRARY</span>
-              <h2>Creation Assets</h2>
-            </div>
-            <form className="search" onSubmit={handleSearch}>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="搜索标题或说明"
-              />
-              <button type="submit">搜索</button>
-            </form>
-          </div>
+            <section className="section-block">
+              <div className="section-heading">
+                <div><span className="eyebrow">FEATURED CREATION ASSETS</span><h2>从效果图进入</h2></div>
+                <button className="ghost" onClick={() => setPage("gallery")}>查看全部</button>
+              </div>
+              <div className="card-grid">
+                {FEATURED.slice(0, 4).map((item) => (
+                  <article className="feature-card" key={item.id} onClick={() => setPage("gallery")}>
+                    <div className={`feature-cover cover-${item.cover}`}><span>{item.emoji}</span><em>{item.type}</em></div>
+                    <div className="card-body">
+                      <h3>{item.name}</h3>
+                      <p>{item.desc}</p>
+                      <div className="tag-row">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
 
-          {assets.length === 0 ? (
-            <div className="empty">
-              <strong>还没有本地资产</strong>
-              <span>从上面的 Quick Create 建一个，数据会真正写进 SQLite。</span>
+        {page === "gallery" && (
+          <>
+            <PageHeader eyebrow="EFFECT FIRST" title="效果图库" description="先看结果，再进入模板或 Builder 复用生成方法。" />
+            <div className="toolbar">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索效果、标签或说明" />
+              <select value={galleryType} onChange={(e) => setGalleryType(e.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              </select>
             </div>
-          ) : (
-            <div className="asset-grid">
-              {assets.map((asset) => (
-                <article className="asset-card" key={asset.id}>
-                  <div className={`asset-cover modality-${asset.modality}`}>
-                    <span>{asset.modality.toUpperCase()}</span>
-                  </div>
-                  <div className="asset-body">
-                    <span className="eyebrow">{asset.status}</span>
-                    <h3>{asset.title}</h3>
-                    <p>{asset.description || "暂无说明"}</p>
-                    <small>{new Date(asset.updated_at).toLocaleString()}</small>
+            <div className="card-grid">
+              {filteredFeatured.map((item) => (
+                <article className="feature-card" key={item.id}>
+                  <div className={`feature-cover cover-${item.cover}`}><span>{item.emoji}</span><em>{item.time || item.type}</em></div>
+                  <div className="card-body">
+                    <span className="eyebrow">{item.model}</span>
+                    <h3>{item.name}</h3>
+                    <p>{item.desc}</p>
+                    <small>模板：{item.template}</small>
+                    <div className="card-actions">
+                      <button className="primary compact" onClick={() => {
+                        const template = TEMPLATES.find((x) => x.name === item.template);
+                        if (template) useTemplate(template);
+                      }}>用此效果创作</button>
+                    </div>
                   </div>
                 </article>
               ))}
             </div>
-          )}
-        </section>
+          </>
+        )}
+
+        {page === "builder" && (
+          <>
+            <PageHeader eyebrow="VISUAL PROMPT BUILDER" title="提示词构建器" description="下一提交将把图片 / 视频 / 3D / 音频的原型 Builder 全量迁入这里。" />
+            <section className="panel placeholder-panel">
+              <span className="badge">迁移中</span>
+              <h2>{selectedTemplate ? `已选择模板：${selectedTemplate.name}` : "多模态 Builder"}</h2>
+              <p>当前页面壳已经进入正式 React 应用；下一步会加入模型、预设、视觉卡片、视频运镜、3D、音频、实时 Prompt 与 SQLite 保存。</p>
+            </section>
+          </>
+        )}
+
+        {page === "templates" && (
+          <>
+            <PageHeader eyebrow="REUSABLE STRUCTURES" title="模板库" description="12 套 V0.2 内置模板已经迁入正式应用。" />
+            <div className="toolbar">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索模板或标签" />
+              <select value={templateType} onChange={(e) => setTemplateType(e.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              </select>
+            </div>
+            <div className="card-grid">
+              {filteredTemplates.map((template) => (
+                <article className="catalog-card" key={template.id}>
+                  <div className="catalog-icon">{template.icon}</div>
+                  <span className="eyebrow">{template.type}</span>
+                  <h3>{template.name}</h3>
+                  <p>{template.desc}</p>
+                  <div className="tag-row">{template.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  <div className="card-actions">
+                    <button className="ghost" onClick={() => openTemplate(template)}>详情</button>
+                    <button className="primary compact" onClick={() => useTemplate(template)}>使用模板</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {page === "workflows" && (
+          <>
+            <PageHeader eyebrow="CREATION PIPELINES" title="工作流" description="把 Prompt Asset 接到生成、评审和输出保存流程。" />
+            <div className="workflow-grid">
+              {WORKFLOWS.map((workflow) => (
+                <article className="workflow-card" key={workflow.name}>
+                  <div className="workflow-meta"><span className="badge">{workflow.type}</span></div>
+                  <h3>{workflow.name}</h3>
+                  <p>{workflow.desc}</p>
+                  <div className="workflow-nodes">
+                    {workflow.nodes.map((node, index) => (
+                      <span key={node}>{node}{index < workflow.nodes.length - 1 ? <b>→</b> : null}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <section className="panel workflow-canvas">
+              <span className="eyebrow">CONCEPT GRAPH</span>
+              <div className="node-line">
+                {["Reference Input", "Prompt Asset", "Image Generation", "Review / Select", "Image → Video"].map((node, index) => (
+                  <span key={node}><strong>{node}</strong>{index < 4 && <b>→</b>}</span>
+                ))}
+              </div>
+              <p>这一阶段保持与原型一致的可视概念；真正可拖拽/连线的 Workflow Graph 会在后续切片接数据库 CRUD。</p>
+            </section>
+          </>
+        )}
+
+        {page === "models" && (
+          <>
+            <PageHeader eyebrow="MODEL PROFILES" title="模型目录" description="模型档案用于决定 Prompt 结构和能力提示，不直接等同于 API 连接状态。" />
+            <div className="toolbar">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索模型或能力" />
+              <select value={modelType} onChange={(e) => setModelType(e.target.value as "all" | StudioMode)}>
+                <option value="all">全部模态</option><option value="image">图片</option><option value="video">视频</option><option value="3d">3D</option><option value="audio">音频</option>
+              </select>
+            </div>
+            <div className="model-grid">
+              {filteredModels.map((model) => (
+                <article className="catalog-card" key={model.id}>
+                  <div className="model-title"><span className={`type-dot type-${model.type}`} /><h3>{model.name}</h3><em>{model.vendor}</em></div>
+                  <p>{model.desc}</p>
+                  <div className="tag-row">{model.abilities.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  <button className="ghost wide" onClick={() => setPage("builder")}>用此模型创作</button>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {page === "assets" && (
+          <>
+            <PageHeader eyebrow="SQLITE LOCAL LIBRARY" title="我的资产" description="这里展示已经真正写入本地 SQLite 的 Creation Asset。" />
+            <div className="toolbar">
+              <input value={assetQuery} onChange={(e) => setAssetQuery(e.target.value)} placeholder="搜索标题或说明" />
+              <button className="ghost" onClick={() => refreshAssets(assetQuery)}>搜索</button>
+              <button className="primary compact" onClick={() => setPage("builder")}>新建资产</button>
+            </div>
+            {assets.length === 0 ? (
+              <EmptyState title="还没有本地资产" text="进入 Builder 保存一个，数据会写入 SQLite。" />
+            ) : (
+              <div className="asset-grid">
+                {assets.map((asset) => (
+                  <article className="asset-card" key={asset.id}>
+                    <div className={`asset-cover modality-${asset.modality}`}><span>{asset.modality.toUpperCase()}</span></div>
+                    <div className="asset-body">
+                      <span className="eyebrow">{asset.status}</span>
+                      <h3>{asset.title}</h3>
+                      <p>{asset.description || "暂无说明"}</p>
+                      <small>{new Date(asset.updated_at).toLocaleString()}</small>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {page === "share" && (
+          <>
+            <PageHeader eyebrow="PORTABLE CREATION ASSETS" title="导入 / 分享" description="下一提交接入 JSON 导出、Share Code、备份和恢复。" />
+            <section className="panel placeholder-panel"><h2>Creation Pack</h2><p>资产结构已经由 JSON Schema 定义；UI 会继续迁移原型的离线分享能力。</p></section>
+          </>
+        )}
+
+        {page === "settings" && (
+          <>
+            <PageHeader eyebrow="LOCAL PREFERENCES" title="设置" description="下一提交迁移原型的语言、默认模态、草稿和备份设置。" />
+            <section className="panel placeholder-panel"><h2>Local First</h2><p>用户数据仍然保存在本地 SQLite 与本地媒体目录，不自动上传。</p></section>
+          </>
+        )}
       </main>
+
+      {selectedTemplate && page !== "builder" && (
+        <div className="modal-backdrop" onClick={() => setSelectedTemplate(null)}>
+          <section className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedTemplate(null)}>×</button>
+            <div className="catalog-icon large">{selectedTemplate.icon}</div>
+            <span className="eyebrow">{selectedTemplate.type} · {selectedTemplate.preset}</span>
+            <h2>{selectedTemplate.name}</h2>
+            <p>{selectedTemplate.desc}</p>
+            <div className="detail-block"><strong>默认主体</strong><span>{selectedTemplate.subject}</span></div>
+            <div className="detail-block"><strong>Negative Prompt</strong><span>{selectedTemplate.negative}</span></div>
+            <div className="tag-row">{selectedTemplate.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+            <button className="primary wide" onClick={() => useTemplate(selectedTemplate)}>使用此模板</button>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
