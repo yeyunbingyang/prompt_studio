@@ -96,6 +96,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
   const [composition, setComposition] = useState<string[]>([]);
   const [lighting, setLighting] = useState<string[]>([]);
   const [style, setStyle] = useState<string[]>([]);
+  const [mainImage, setMainImage] = useState<RefImage | null>(null);
   const [refs, setRefs] = useState<RefImage[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -218,16 +219,12 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
       topology, material, audioType, audioMood, audioPace
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [
-    draftReady, settings.autosaveDraft, mode, model, preset, subject, negative, extra,
-    assetName, language, composition, lighting, style, motionSubject, cameraMotion,
-    lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc,
-    meshType, topology, material, audioType, audioMood, audioPace
-  ]);
+  }, [draftReady, settings.autosaveDraft, mode, model, preset, subject, negative, extra, assetName, language, composition, lighting, style, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace]);
 
   const promptZh = useMemo(() => {
     const pieces: string[] = [];
     if (subject.trim()) pieces.push(subject.trim());
+    if (mainImage) pieces.push("已提供主效果图 / 主参考图，以其作为主要视觉参考");
     if (mode === "image") {
       if (composition.length) pieces.push(`构图：${composition.join("、")}`);
       if (lighting.length) pieces.push(`光线：${lighting.join("、")}`);
@@ -244,14 +241,15 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     }
     if (mode === "3d") pieces.push(`输出：${meshType}`, `拓扑：${topology}`, `材质：${material}`);
     if (mode === "audio") pieces.push(`音频类型：${audioType}`, `情绪：${audioMood}`, `节奏：${audioPace}`);
-    if (refs.length) pieces.push(`参考图：${refs.length} 张，保持参考结构与身份连续性`);
+    if (refs.length) pieces.push(`辅助参考图：${refs.length} 张，保持参考结构与身份连续性`);
     if (extra.trim()) pieces.push(extra.trim());
     return pieces.filter(Boolean).join("；");
-  }, [subject, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
+  }, [subject, mainImage, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
 
   const promptEn = useMemo(() => {
     const pieces: string[] = [];
     if (subject.trim()) pieces.push(subject.trim());
+    if (mainImage) pieces.push("use the provided main effect/reference image as the primary visual reference");
     if (mode === "image") {
       if (composition.length) pieces.push(`composition: ${composition.join(", ")}`);
       if (lighting.length) pieces.push(`lighting: ${lighting.join(", ")}`);
@@ -268,22 +266,25 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     }
     if (mode === "3d") pieces.push(`output: ${meshType}`, `topology: ${topology}`, `material: ${material}`);
     if (mode === "audio") pieces.push(`audio type: ${audioType}`, `mood: ${audioMood}`, `pace: ${audioPace}`);
-    if (refs.length) pieces.push(`${refs.length} reference images, preserve structural and identity continuity`);
+    if (refs.length) pieces.push(`${refs.length} auxiliary reference images, preserve structural and identity continuity`);
     if (extra.trim()) pieces.push(extra.trim());
     return pieces.filter(Boolean).join(", ");
-  }, [subject, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
+  }, [subject, mainImage, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
 
   const prompt = language === "zh" ? promptZh : promptEn;
 
+  async function addMainImage(file: File | undefined) {
+    if (!file) return;
+    setMainImage({ id: `${file.name}-${file.lastModified}`, name: file.name, dataUrl: await fileToDataUrl(file) });
+  }
+
   async function addReferenceFiles(files: FileList | null) {
     if (!files?.length) return;
-    const next = await Promise.all(
-      Array.from(files).slice(0, Math.max(0, 4 - refs.length)).map(async (file) => ({
-        id: `${file.name}-${file.lastModified}-${Math.random()}`,
-        name: file.name,
-        dataUrl: await fileToDataUrl(file)
-      }))
-    );
+    const next = await Promise.all(Array.from(files).slice(0, Math.max(0, 4 - refs.length)).map(async (file) => ({
+      id: `${file.name}-${file.lastModified}-${Math.random()}`,
+      name: file.name,
+      dataUrl: await fileToDataUrl(file)
+    })));
     setRefs((current) => [...current, ...next].slice(0, 4));
   }
 
@@ -328,6 +329,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
         prompt_zh: promptZh,
         prompt_en: promptEn,
         negative_prompt: negative,
+        main_reference: mainImage ? { name: mainImage.name } : null,
         references: refs.map((item) => ({ name: item.name })),
         structured_parameters: {
           composition, lighting, style,
@@ -354,6 +356,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     setComposition([]);
     setLighting([]);
     setStyle([]);
+    setMainImage(null);
     setRefs([]);
     setMotionSubject("");
     setEnvMotion("");
@@ -370,8 +373,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
       <div className="builder-tabs">
         {(Object.keys(MODE_DATA) as StudioMode[]).map((item) => (
           <button key={item} className={mode === item ? "active" : ""} onClick={() => setMode(item)}>
-            <strong>{MODE_DATA[item].label}</strong>
-            <span>{item}</span>
+            <strong>{MODE_DATA[item].label}</strong><span>{item}</span>
           </button>
         ))}
       </div>
@@ -379,10 +381,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
       <div className="builder-grid">
         <div className="builder-controls">
           <section className="panel form-panel">
-            <div className="section-heading compact-heading">
-              <div><span className="eyebrow">BASE</span><h2>基础设置</h2></div>
-              <span className="badge">{mode}</span>
-            </div>
+            <div className="section-heading compact-heading"><div><span className="eyebrow">BASE</span><h2>基础设置</h2></div><span className="badge">{mode}</span></div>
             <div className="field-grid two">
               <label>模型<select value={model} onChange={(event) => setModel(event.target.value)}>{MODE_DATA[mode].models.map((item) => <option key={item}>{item}</option>)}</select></label>
               <label>预设<select value={preset} onChange={(event) => setPreset(event.target.value)}>{MODE_DATA[mode].presets.map((item) => <option key={item}>{item}</option>)}</select></label>
@@ -412,10 +411,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
                 <label>画幅<select value={aspect} onChange={(event) => setAspect(event.target.value)}>{aspects.map((item) => <option key={item}>{item}</option>)}</select></label>
               </div>
               <label>环境 / 时间变化<input value={envMotion} onChange={(event) => setEnvMotion(event.target.value)} placeholder="微风、雨水、光线变化、背景运动…" /></label>
-              <div className="field-grid two">
-                <label>开始状态<textarea rows={2} value={firstState} onChange={(event) => setFirstState(event.target.value)} /></label>
-                <label>结束状态<textarea rows={2} value={lastState} onChange={(event) => setLastState(event.target.value)} /></label>
-              </div>
+              <div className="field-grid two"><label>开始状态<textarea rows={2} value={firstState} onChange={(event) => setFirstState(event.target.value)} /></label><label>结束状态<textarea rows={2} value={lastState} onChange={(event) => setLastState(event.target.value)} /></label></div>
               <label>声音 / 对白<textarea rows={2} value={audioDesc} onChange={(event) => setAudioDesc(event.target.value)} /></label>
             </section>
           )}
@@ -444,11 +440,12 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
 
           <section className="panel form-panel">
             <span className="eyebrow">REFERENCES</span><h2>参考图</h2>
-            <label className="upload-zone">
-              <input type="file" accept="image/*" multiple onChange={(event) => addReferenceFiles(event.target.files)} />
-              <strong>添加 Ref A–D</strong>
-              <span>最多 4 张。草稿不会把图片 Base64 写进 LocalStorage，避免浏览器容量膨胀。</span>
-            </label>
+            {mainImage ? (
+              <figure className="main-reference-preview"><img src={mainImage.dataUrl} alt={mainImage.name} /><div><strong>主效果图 / 主参考图</strong><span>{mainImage.name}</span><button className="ghost compact" onClick={() => setMainImage(null)}>移除</button></div></figure>
+            ) : (
+              <label className="upload-zone main-upload"><input type="file" accept="image/*" onChange={(event) => addMainImage(event.target.files?.[0])} /><strong>插入主效果图 / 主参考图</strong><span>用于确定主要视觉方向；当前版本只在本次 Builder 会话内预览。</span></label>
+            )}
+            <label className="upload-zone"><input type="file" accept="image/*" multiple onChange={(event) => addReferenceFiles(event.target.files)} /><strong>添加 Ref A–D</strong><span>最多 4 张。草稿不会把图片 Base64 写进 LocalStorage，避免浏览器容量膨胀。</span></label>
             {refs.length > 0 && <div className="reference-grid">{refs.map((ref) => <figure key={ref.id}><img src={ref.dataUrl} alt={ref.name} /><button onClick={() => setRefs((current) => current.filter((item) => item.id !== ref.id))}>×</button><figcaption>{ref.name}</figcaption></figure>)}</div>}
             <label>补充参数 / 约束<textarea rows={3} value={extra} onChange={(event) => setExtra(event.target.value)} placeholder="模型特定参数、连续性规则、备注等" /></label>
           </section>
@@ -456,21 +453,13 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
 
         <aside className="builder-output">
           <section className="panel sticky-output">
-            <div className="section-heading compact-heading">
-              <div><span className="eyebrow">LIVE OUTPUT</span><h2>Prompt</h2></div>
-              <div className="language-switch"><button className={language === "zh" ? "active" : ""} onClick={() => setLanguage("zh")}>中文</button><button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>EN</button></div>
-            </div>
+            <div className="section-heading compact-heading"><div><span className="eyebrow">LIVE OUTPUT</span><h2>Prompt</h2></div><div className="language-switch"><button className={language === "zh" ? "active" : ""} onClick={() => setLanguage("zh")}>中文</button><button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>EN</button></div></div>
             <div className="prompt-preview">{prompt || "填写左侧参数后，这里实时组合 Prompt。"}</div>
             <div className="negative-preview"><strong>Negative</strong><span>{negative || "—"}</span></div>
             <label>资产名称<input value={assetName} onChange={(event) => setAssetName(event.target.value)} /></label>
-            <div className="output-actions">
-              <button className="primary" disabled={saving} onClick={saveAsset}>{saving ? "保存中…" : "保存到 SQLite"}</button>
-              <button className="ghost" onClick={copyPrompt}>复制 Prompt</button>
-              <button className="ghost" onClick={exportAsset}>导出 .aipack.json</button>
-              <button className="ghost" onClick={reset}>重置</button>
-            </div>
+            <div className="output-actions"><button className="primary" disabled={saving} onClick={saveAsset}>{saving ? "保存中…" : "保存到 SQLite"}</button><button className="ghost" onClick={copyPrompt}>复制 Prompt</button><button className="ghost" onClick={exportAsset}>导出 .aipack.json</button><button className="ghost" onClick={reset}>重置</button></div>
             {message && <div className="builder-message">{message}</div>}
-            <div className="builder-meta"><span>{model}</span><span>{preset}</span><span>{refs.length} refs</span><span>{settings.autosaveDraft ? "草稿自动保存" : "草稿关闭"}</span></div>
+            <div className="builder-meta"><span>{model}</span><span>{preset}</span><span>{mainImage ? "主参考图 ✓" : "无主参考图"}</span><span>{refs.length} refs</span><span>{settings.autosaveDraft ? "草稿自动保存" : "草稿关闭"}</span></div>
           </section>
         </aside>
       </div>
@@ -478,28 +467,6 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
   );
 }
 
-function VisualGroup({
-  title,
-  values,
-  selected,
-  setSelected
-}: {
-  title: string;
-  values: readonly (readonly [string, string])[];
-  selected: string[];
-  setSelected: (value: string[]) => void;
-}) {
-  return (
-    <div className="visual-group">
-      <strong>{title}</strong>
-      <div className="visual-options">
-        {values.map(([label, icon]) => (
-          <button key={label} className={selected.includes(label) ? "selected" : ""} onClick={() => setSelected(toggleValue(selected, label))}>
-            <span>{icon}</span>
-            <em>{label}</em>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+function VisualGroup({ title, values, selected, setSelected }: { title: string; values: readonly (readonly [string, string])[]; selected: string[]; setSelected: (value: string[]) => void }) {
+  return <div className="visual-group"><strong>{title}</strong><div className="visual-options">{values.map(([label, icon]) => <button key={label} className={selected.includes(label) ? "selected" : ""} onClick={() => setSelected(toggleValue(selected, label))}><span>{icon}</span><em>{label}</em></button>)}</div></div>;
 }
