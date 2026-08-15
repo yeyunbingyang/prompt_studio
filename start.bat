@@ -10,7 +10,7 @@ echo.
 
 if not exist ".venv\Scripts\python.exe" (
     echo [INFO] First run detected. Running setup...
-    call "%~dp0setup.bat"
+    call "%~dp0setup.bat" --no-pause
     if errorlevel 1 exit /b 1
 )
 
