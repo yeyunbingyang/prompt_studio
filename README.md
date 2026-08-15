@@ -24,26 +24,72 @@ V0.3 已经是可启动工程，不再只是静态页面：Web 会连接本地 A
 - Python `3.10+`
 - Windows 10/11、macOS 或 Linux
 
-## Windows 快速启动
+## Windows 一键运行
 
-首次：
+Windows 用户优先使用仓库根目录的 BAT：
 
-```powershell
-git pull origin main
-powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+| 文件 | 用途 |
+|---|---|
+| `setup.bat` | 首次安装 Node/Python 项目依赖并创建 `.venv` |
+| `start.bat` | 日常一键启动 API + Web，并自动打开浏览器 |
+| `check.bat` | 执行 TypeScript、Core 和 API 测试 |
+| `stop.bat` | 停止监听 5173/8000 的 Prompt Studio Node/Python 服务 |
+
+### 第一次使用
+
+双击：
+
+```text
+setup.bat
 ```
 
-然后打开：
+完成后双击：
+
+```text
+start.bat
+```
+
+`start.bat` 也会检测首次运行状态：如果 `.venv` 尚不存在，会自动调用 `setup.bat`。
+
+### 日常使用
+
+以后通常只需要双击：
+
+```text
+start.bat
+```
+
+启动后会自动打开：
 
 - Web: `http://127.0.0.1:5173`
 - API: `http://127.0.0.1:8000`
 - OpenAPI: `http://127.0.0.1:8000/docs`
 
-以后开发只需要：
+如果 5173 和 8000 已经处于运行状态，`start.bat` 不会重复启动服务，只会打开 Web 页面。
+
+停止开发服务时双击：
+
+```text
+stop.bat
+```
+
+`stop.bat` 只会停止占用 5173/8000 且进程名为 `node` / `python` / `pythonw` 的监听进程，不会执行全局 `taskkill /IM node.exe`。
+
+## PowerShell 启动方式
+
+BAT 内部复用以下 PowerShell 脚本，排错或高级使用时也可以手动运行。
+
+首次：
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+```
+
+项目检查：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check.ps1
 ```
 
 ## 手动启动
@@ -76,7 +122,7 @@ npm run dev:web
 - Prompt Core：Prompt Fragment 组合与去空值
 - Core 单元测试
 - API 基础测试
-- Windows bootstrap/dev/check 脚本
+- Windows BAT + PowerShell 启动/检查脚本
 - ComfyUI Adapter 接口占位，不侵入 Domain Core
 
 ## 数据位置
