@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prompt-studio.local/schemas/creation-asset.schema.json",
+  "title": "Creation Asset",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "modality",
+    "status",
+    "prompt_variants",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "modality": {
+      "enum": [
+        "image",
+        "video",
+        "3d",
+        "audio",
+        "text"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "template_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cover_media_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forked_from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prompt_variants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/promptVariant"
+      }
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/media"
+      }
+    },
+    "model_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "workflow_binding": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "promptVariant": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "language",
+        "positive_prompt",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "model_family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "positive_prompt": {
+          "type": "string"
+        },
+        "negative_prompt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "structured_parameters": {
+          "type": "object"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "media": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "media_type",
+        "relative_path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "cover",
+            "reference",
+            "output",
+            "thumbnail"
+          ]
+        },
+        "media_type": {
+          "enum": [
+            "image",
+            "video",
+            "audio"
+          ]
+        },
+        "relative_path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

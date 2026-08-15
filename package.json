@@ -1,0 +1,20 @@
+{
+  "name": "prompt-studio",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Local-first multimodal AI creation asset studio",
+  "workspaces": [
+    "apps/web",
+    "packages/core"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @prompt-studio/web",
+    "build": "npm run build --workspace @prompt-studio/core && npm run build --workspace @prompt-studio/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspace @prompt-studio/core",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

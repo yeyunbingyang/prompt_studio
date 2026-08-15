@@ -1,28 +1,32 @@
-# OS / editors
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# JS / Python
+# Node
 node_modules/
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# Build / local runtime
 dist/
-build/
-.cache/
+.vite/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Prompt Studio runtime
+.prompt-studio/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
 .env
 .env.*
 !.env.example
 
-# Local user data (never commit personal assets)
-runtime/
-local-data/
-user-data/
-*.db
-*.sqlite
-*.sqlite3
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
