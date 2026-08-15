@@ -1,0 +1,28 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# JS / Python
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build / local runtime
+dist/
+build/
+.cache/
+.env
+.env.*
+!.env.example
+
+# Local user data (never commit personal assets)
+runtime/
+local-data/
+user-data/
+*.db
+*.sqlite
+*.sqlite3
