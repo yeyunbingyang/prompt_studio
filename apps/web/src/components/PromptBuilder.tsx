@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CreationAssetDetail } from "@prompt-studio/core";
 import { api } from "../api/client";
-import { MODE_DATA, VISUAL, type StudioMode, type TemplatePreset } from "../data/catalog";
+import { MODE_DATA, type StudioMode, type TemplatePreset } from "../data/catalog";
+import {
+  IMAGE_VISUAL_GROUPS,
+  VISUAL_TIER_LABELS,
+  countVisualOptions,
+  emptyVisualSelections,
+  findVisualOptionByLabel,
+  type VisualParameterGroup,
+  type VisualTier
+} from "../data/visualParameters";
 import { readSettings } from "./SettingsPanel";
 
 type BuilderProps = {
@@ -23,9 +32,10 @@ type BuilderDraft = {
   extra: string;
   assetName: string;
   language: "zh" | "en";
-  composition: string[];
-  lighting: string[];
-  style: string[];
+  visualSelections?: Record<string, string[]>;
+  composition?: string[];
+  lighting?: string[];
+  style?: string[];
   motionSubject: string;
   cameraMotion: string;
   lens: string;
@@ -49,10 +59,7 @@ const cameras = ["固定镜头", "Dolly In 推镜", "Dolly Out 拉镜", "Pan 横
 const lenses = ["24mm", "35mm", "50mm", "85mm", "100mm"];
 const durations = ["5s", "8s", "10s", "15s"];
 const aspects = ["16:9", "9:16", "1:1", "2.39:1"];
-
-function toggleValue(list: string[], value: string) {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
+const VISUAL_TOTAL = countVisualOptions();
 
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -83,6 +90,45 @@ function resolveCatalogModel(name: string | null | undefined) {
   return null;
 }
 
+function normalizeVisualSelections(value: unknown): Record<string, string[]> {
+  const next = emptyVisualSelections();
+  if (!value || typeof value !== "object") return next;
+  const source = value as Record<string, unknown>;
+  for (const group of IMAGE_VISUAL_GROUPS) {
+    const raw = source[group.id];
+    if (!Array.isArray(raw)) continue;
+    const allowed = new Set(group.options.map((item) => item.id));
+    const selected = raw.filter((item): item is string => typeof item === "string" && allowed.has(item));
+    next[group.id] = group.selection === "single" ? selected.slice(0, 1) : selected;
+  }
+  return next;
+}
+
+function selectionsFromLegacyLabels(labels: string[]) {
+  const next = emptyVisualSelections();
+  for (const label of labels) {
+    const match = findVisualOptionByLabel(label);
+    if (!match) continue;
+    if (match.group.selection === "single") {
+      next[match.group.id] = [match.option.id];
+    } else if (!next[match.group.id].includes(match.option.id)) {
+      next[match.group.id] = [...next[match.group.id], match.option.id];
+    }
+  }
+  return next;
+}
+
+function selectionCount(selections: Record<string, string[]>) {
+  return Object.values(selections).reduce((total, values) => total + values.length, 0);
+}
+
+function structuredFromVariant(assetSeed: CreationAssetDetail | null) {
+  const variant = assetSeed?.prompt_variants[0];
+  return variant?.structured_parameters && typeof variant.structured_parameters === "object"
+    ? variant.structured_parameters as Record<string, unknown>
+    : null;
+}
+
 export function PromptBuilder({ template, initialModel, initialMode, assetSeed, onSaved }: BuilderProps) {
   const settings = useMemo(readSettings, []);
   const [mode, setMode] = useState<StudioMode>(settings.defaultMode);
@@ -93,9 +139,9 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
   const [extra, setExtra] = useState("");
   const [assetName, setAssetName] = useState("未命名 Creation Asset");
   const [language, setLanguage] = useState<"zh" | "en">(settings.defaultLanguage);
-  const [composition, setComposition] = useState<string[]>([]);
-  const [lighting, setLighting] = useState<string[]>([]);
-  const [style, setStyle] = useState<string[]>([]);
+  const [visualSelections, setVisualSelections] = useState<Record<string, string[]>>(emptyVisualSelections);
+  const [visualTier, setVisualTier] = useState<VisualTier>("basic");
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const [mainImage, setMainImage] = useState<RefImage | null>(null);
   const [refs, setRefs] = useState<RefImage[]>([]);
   const [saving, setSaving] = useState(false);
@@ -136,9 +182,15 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
       setExtra(draft.extra);
       setAssetName(draft.assetName);
       setLanguage(draft.language);
-      setComposition(draft.composition ?? []);
-      setLighting(draft.lighting ?? []);
-      setStyle(draft.style ?? []);
+      if (draft.visualSelections) {
+        setVisualSelections(normalizeVisualSelections(draft.visualSelections));
+      } else {
+        setVisualSelections(selectionsFromLegacyLabels([
+          ...(draft.composition ?? []),
+          ...(draft.lighting ?? []),
+          ...(draft.style ?? [])
+        ]));
+      }
       setMotionSubject(draft.motionSubject ?? "");
       setCameraMotion(draft.cameraMotion ?? cameras[1]);
       setLens(draft.lens ?? "50mm");
@@ -155,7 +207,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
       setAudioType(draft.audioType ?? "music");
       setAudioMood(draft.audioMood ?? "mysterious");
       setAudioPace(draft.audioPace ?? "medium");
-      setMessage("已恢复上次草稿。");
+      setMessage("已恢复上次草稿，并迁移到 V0.3.2 视觉参数结构。");
     }
     setDraftReady(true);
   }, [settings.autosaveDraft, template, assetSeed, initialModel, initialMode]);
@@ -168,10 +220,12 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     setSubject(template.subject);
     setNegative(template.negative);
     setAssetName(template.name);
-    setComposition(template.composition ?? []);
-    setLighting(template.lighting ?? []);
-    setStyle(template.style ?? []);
-    setMessage(`已载入模板：${template.name}`);
+    setVisualSelections(selectionsFromLegacyLabels([
+      ...(template.composition ?? []),
+      ...(template.lighting ?? []),
+      ...(template.style ?? [])
+    ]));
+    setMessage(`已载入模板：${template.name}；旧参数已映射到 V0.3.2 Visual Parameters。`);
   }, [template]);
 
   useEffect(() => {
@@ -194,13 +248,22 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     if (!assetSeed) return;
     const nextMode: StudioMode = assetSeed.modality === "text" ? "image" : assetSeed.modality;
     const variant = assetSeed.prompt_variants[0];
+    const structured = structuredFromVariant(assetSeed);
     setMode(nextMode);
     const descriptionParts = assetSeed.description.split(" · ");
     const resolved = resolveCatalogModel(descriptionParts[0]);
     if (resolved && resolved.mode === nextMode) setModel(resolved.model);
     if (descriptionParts[1] && MODE_DATA[nextMode].presets.includes(descriptionParts[1])) setPreset(descriptionParts[1]);
-    setSubject(variant?.positive_prompt || assetSeed.description || "");
+    const savedSubject = structured?.subject;
+    const savedExtra = structured?.extra;
+    setSubject(typeof savedSubject === "string" ? savedSubject : variant?.positive_prompt || assetSeed.description || "");
+    setExtra(typeof savedExtra === "string" ? savedExtra : "");
     setNegative(variant?.negative_prompt || "");
+    if (structured?.visual_parameters) {
+      setVisualSelections(normalizeVisualSelections(structured.visual_parameters));
+    } else {
+      setVisualSelections(emptyVisualSelections());
+    }
     setAssetName(`${assetSeed.title} 副本`);
     setMessage(`已从 SQLite 载入「${assetSeed.title}」，保存时将创建新资产。`);
   }, [assetSeed]);
@@ -214,21 +277,28 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     if (!draftReady || !settings.autosaveDraft) return;
     const draft: BuilderDraft = {
       mode, model, preset, subject, negative, extra, assetName, language,
-      composition, lighting, style, motionSubject, cameraMotion, lens, motionSpeed,
+      visualSelections, motionSubject, cameraMotion, lens, motionSpeed,
       duration, aspect, envMotion, firstState, lastState, audioDesc, meshType,
       topology, material, audioType, audioMood, audioPace
     };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [draftReady, settings.autosaveDraft, mode, model, preset, subject, negative, extra, assetName, language, composition, lighting, style, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace]);
+  }, [draftReady, settings.autosaveDraft, mode, model, preset, subject, negative, extra, assetName, language, visualSelections, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace]);
+
+  const selectedVisualOptions = useMemo(
+    () => IMAGE_VISUAL_GROUPS.flatMap((group) =>
+      group.options
+        .filter((item) => visualSelections[group.id]?.includes(item.id))
+        .map((option) => ({ group, option }))
+    ),
+    [visualSelections]
+  );
 
   const promptZh = useMemo(() => {
     const pieces: string[] = [];
     if (subject.trim()) pieces.push(subject.trim());
     if (mainImage) pieces.push("已提供主效果图 / 主参考图，以其作为主要视觉参考");
     if (mode === "image") {
-      if (composition.length) pieces.push(`构图：${composition.join("、")}`);
-      if (lighting.length) pieces.push(`光线：${lighting.join("、")}`);
-      if (style.length) pieces.push(`风格：${style.join("、")}`);
+      pieces.push(...selectedVisualOptions.map(({ option: visualOption }) => visualOption.promptZh));
       pieces.push(`生成预设：${preset}`);
     }
     if (mode === "video") {
@@ -244,16 +314,14 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     if (refs.length) pieces.push(`辅助参考图：${refs.length} 张，保持参考结构与身份连续性`);
     if (extra.trim()) pieces.push(extra.trim());
     return pieces.filter(Boolean).join("；");
-  }, [subject, mainImage, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
+  }, [subject, mainImage, mode, selectedVisualOptions, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
 
   const promptEn = useMemo(() => {
     const pieces: string[] = [];
     if (subject.trim()) pieces.push(subject.trim());
     if (mainImage) pieces.push("use the provided main effect/reference image as the primary visual reference");
     if (mode === "image") {
-      if (composition.length) pieces.push(`composition: ${composition.join(", ")}`);
-      if (lighting.length) pieces.push(`lighting: ${lighting.join(", ")}`);
-      if (style.length) pieces.push(`style: ${style.join(", ")}`);
+      pieces.push(...selectedVisualOptions.map(({ option: visualOption }) => visualOption.promptEn));
       pieces.push(`preset: ${preset}`);
     }
     if (mode === "video") {
@@ -269,9 +337,25 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     if (refs.length) pieces.push(`${refs.length} auxiliary reference images, preserve structural and identity continuity`);
     if (extra.trim()) pieces.push(extra.trim());
     return pieces.filter(Boolean).join(", ");
-  }, [subject, mainImage, mode, composition, lighting, style, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
+  }, [subject, mainImage, mode, selectedVisualOptions, preset, motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc, meshType, topology, material, audioType, audioMood, audioPace, refs.length, extra]);
 
   const prompt = language === "zh" ? promptZh : promptEn;
+  const visualSelectedCount = selectionCount(visualSelections);
+  const visibleVisualGroups = IMAGE_VISUAL_GROUPS.filter((group) => group.tier === visualTier);
+
+  function changeVisualSelection(group: VisualParameterGroup, optionId: string) {
+    setVisualSelections((current) => {
+      const selected = current[group.id] ?? [];
+      const nextForGroup = group.selection === "single"
+        ? (selected.includes(optionId) ? [] : [optionId])
+        : (selected.includes(optionId) ? selected.filter((item) => item !== optionId) : [...selected, optionId]);
+      return { ...current, [group.id]: nextForGroup };
+    });
+  }
+
+  function toggleGroup(groupId: string) {
+    setCollapsedGroups((current) => current.includes(groupId) ? current.filter((item) => item !== groupId) : [...current, groupId]);
+  }
 
   async function addMainImage(file: File | undefined) {
     if (!file) return;
@@ -288,6 +372,25 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     setRefs((current) => [...current, ...next].slice(0, 4));
   }
 
+  function buildStructuredParameters() {
+    return {
+      schema: "prompt-studio.visual-parameters.v1",
+      subject,
+      extra,
+      model,
+      preset,
+      visual_parameters: visualSelections,
+      visual_parameter_count: visualSelectedCount,
+      references: {
+        main: mainImage ? { name: mainImage.name } : null,
+        auxiliary: refs.map((item) => ({ name: item.name }))
+      },
+      video: { motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc },
+      three_d: { meshType, topology, material },
+      audio: { audioType, audioMood, audioPace }
+    };
+  }
+
   async function saveAsset() {
     if (!assetName.trim()) {
       setMessage("请先填写资产名称。");
@@ -301,9 +404,10 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
         modality: mode,
         description: `${model} · ${preset}`,
         positive_prompt: promptZh,
-        negative_prompt: negative.trim()
+        negative_prompt: negative.trim(),
+        structured_parameters: buildStructuredParameters()
       });
-      setMessage("已保存到本地 SQLite。");
+      setMessage(`已保存到本地 SQLite；结构化参数 ${visualSelectedCount} 项。`);
       onSaved?.();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "保存失败");
@@ -319,7 +423,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
 
   function exportAsset() {
     const payload = {
-      schema: "prompt-studio.creation-asset.export.v0.3",
+      schema: "prompt-studio.creation-asset.export.v0.3.2",
       exported_at: new Date().toISOString(),
       asset: {
         name: assetName,
@@ -329,14 +433,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
         prompt_zh: promptZh,
         prompt_en: promptEn,
         negative_prompt: negative,
-        main_reference: mainImage ? { name: mainImage.name } : null,
-        references: refs.map((item) => ({ name: item.name })),
-        structured_parameters: {
-          composition, lighting, style,
-          video: { motionSubject, cameraMotion, lens, motionSpeed, duration, aspect, envMotion, firstState, lastState, audioDesc },
-          three_d: { meshType, topology, material },
-          audio: { audioType, audioMood, audioPace }
-        }
+        structured_parameters: buildStructuredParameters()
       }
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -346,16 +443,16 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     link.download = `${assetName.trim() || "creation-asset"}.aipack.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setMessage("已导出 .aipack.json。");
+    setMessage("已导出 V0.3.2 .aipack.json。");
   }
 
   function reset() {
     setSubject("");
     setNegative("");
     setExtra("");
-    setComposition([]);
-    setLighting([]);
-    setStyle([]);
+    setVisualSelections(emptyVisualSelections());
+    setVisualTier("basic");
+    setCollapsedGroups([]);
     setMainImage(null);
     setRefs([]);
     setMotionSubject("");
@@ -365,7 +462,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
     setAudioDesc("");
     setAssetName("未命名 Creation Asset");
     localStorage.removeItem(DRAFT_KEY);
-    setMessage("已重置 Builder 和草稿。");
+    setMessage("已重置 Builder、视觉参数和草稿。");
   }
 
   return (
@@ -391,11 +488,49 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
           </section>
 
           {mode === "image" && (
-            <section className="panel form-panel">
-              <span className="eyebrow">VISUAL CONTROLS</span><h2>图片视觉参数</h2>
-              <VisualGroup title="构图" values={VISUAL.composition} selected={composition} setSelected={setComposition} />
-              <VisualGroup title="光线" values={VISUAL.lighting} selected={lighting} setSelected={setLighting} />
-              <VisualGroup title="风格" values={VISUAL.style} selected={style} setSelected={setStyle} />
+            <section className="panel form-panel visual-parameter-panel">
+              <div className="visual-parameter-header">
+                <div>
+                  <span className="eyebrow">VISUAL PARAMETERS V1</span>
+                  <h2>图片视觉参数</h2>
+                  <p>10 个参数组、100 个可复用视觉选项。每项同时绑定中英文 Prompt Fragment，并保存为结构化参数。</p>
+                </div>
+                <div className="visual-counter"><strong>{visualSelectedCount}</strong><span>已选 / {VISUAL_TOTAL}</span></div>
+              </div>
+
+              <div className="visual-tier-tabs">
+                {(["basic", "advanced", "professional"] as VisualTier[]).map((tier) => {
+                  const groups = IMAGE_VISUAL_GROUPS.filter((group) => group.tier === tier);
+                  const optionCount = groups.reduce((total, group) => total + group.options.length, 0);
+                  return (
+                    <button key={tier} className={visualTier === tier ? "active" : ""} onClick={() => setVisualTier(tier)}>
+                      <strong>{VISUAL_TIER_LABELS[tier].zh}</strong>
+                      <span>{groups.length} 组 · {optionCount} 项</span>
+                    </button>
+                  );
+                })}
+                <button className="clear-visual" onClick={() => setVisualSelections(emptyVisualSelections())}>清空参数</button>
+              </div>
+
+              {selectedVisualOptions.length > 0 && (
+                <div className="visual-selected-summary">
+                  <strong>当前组合</strong>
+                  <div>{selectedVisualOptions.map(({ group, option: visualOption }) => <span key={`${group.id}-${visualOption.id}`}>{visualOption.labelZh}</span>)}</div>
+                </div>
+              )}
+
+              <div className="visual-groups-v2">
+                {visibleVisualGroups.map((group) => (
+                  <VisualGroupV2
+                    key={group.id}
+                    group={group}
+                    selected={visualSelections[group.id] ?? []}
+                    collapsed={collapsedGroups.includes(group.id)}
+                    onToggleGroup={() => toggleGroup(group.id)}
+                    onToggleOption={(optionId) => changeVisualSelection(group, optionId)}
+                  />
+                ))}
+              </div>
             </section>
           )}
 
@@ -459,7 +594,7 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
             <label>资产名称<input value={assetName} onChange={(event) => setAssetName(event.target.value)} /></label>
             <div className="output-actions"><button className="primary" disabled={saving} onClick={saveAsset}>{saving ? "保存中…" : "保存到 SQLite"}</button><button className="ghost" onClick={copyPrompt}>复制 Prompt</button><button className="ghost" onClick={exportAsset}>导出 .aipack.json</button><button className="ghost" onClick={reset}>重置</button></div>
             {message && <div className="builder-message">{message}</div>}
-            <div className="builder-meta"><span>{model}</span><span>{preset}</span><span>{mainImage ? "主参考图 ✓" : "无主参考图"}</span><span>{refs.length} refs</span><span>{settings.autosaveDraft ? "草稿自动保存" : "草稿关闭"}</span></div>
+            <div className="builder-meta"><span>{model}</span><span>{preset}</span>{mode === "image" && <span>{visualSelectedCount} visual params</span>}<span>{mainImage ? "主参考图 ✓" : "无主参考图"}</span><span>{refs.length} refs</span><span>{settings.autosaveDraft ? "草稿自动保存" : "草稿关闭"}</span></div>
           </section>
         </aside>
       </div>
@@ -467,6 +602,51 @@ export function PromptBuilder({ template, initialModel, initialMode, assetSeed, 
   );
 }
 
-function VisualGroup({ title, values, selected, setSelected }: { title: string; values: readonly (readonly [string, string])[]; selected: string[]; setSelected: (value: string[]) => void }) {
-  return <div className="visual-group"><strong>{title}</strong><div className="visual-options">{values.map(([label, icon]) => <button key={label} className={selected.includes(label) ? "selected" : ""} onClick={() => setSelected(toggleValue(selected, label))}><span>{icon}</span><em>{label}</em></button>)}</div></div>;
+function VisualGroupV2({
+  group,
+  selected,
+  collapsed,
+  onToggleGroup,
+  onToggleOption
+}: {
+  group: VisualParameterGroup;
+  selected: string[];
+  collapsed: boolean;
+  onToggleGroup: () => void;
+  onToggleOption: (optionId: string) => void;
+}) {
+  return (
+    <section className={`visual-group-v2 ${collapsed ? "collapsed" : ""}`}>
+      <button className="visual-group-title" onClick={onToggleGroup}>
+        <div>
+          <strong>{group.titleZh}</strong>
+          <span>{group.titleEn} · {group.selection === "single" ? "单选" : "可多选"}</span>
+        </div>
+        <div><em>{selected.length}</em><b>{collapsed ? "+" : "−"}</b></div>
+      </button>
+      {!collapsed && (
+        <div className="visual-options-v2">
+          {group.options.map((visualOption) => {
+            const active = selected.includes(visualOption.id);
+            return (
+              <button
+                key={visualOption.id}
+                className={active ? "selected" : ""}
+                onClick={() => onToggleOption(visualOption.id)}
+                title={`${visualOption.labelEn} — ${visualOption.descriptionZh}`}
+              >
+                <span className="visual-option-icon">{visualOption.icon}</span>
+                <span className="visual-option-copy">
+                  <strong>{visualOption.labelZh}</strong>
+                  <em>{visualOption.labelEn}</em>
+                  <small>{visualOption.descriptionZh}</small>
+                </span>
+                <i>{active ? "✓" : "+"}</i>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
