@@ -6,9 +6,10 @@ type Props = {
   assetId: string | null;
   onClose: () => void;
   onDeleted: () => void;
+  onLoad: (asset: CreationAssetDetail) => void;
 };
 
-export function AssetDetailModal({ assetId, onClose, onDeleted }: Props) {
+export function AssetDetailModal({ assetId, onClose, onDeleted, onLoad }: Props) {
   const [asset, setAsset] = useState<CreationAssetDetail | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,6 +33,8 @@ export function AssetDetailModal({ assetId, onClose, onDeleted }: Props) {
     try {
       const next = await api.updateAsset(asset.id, { status: asset.status === "archived" ? "active" : "archived" });
       setAsset(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setBusy(false);
     }
@@ -94,6 +97,7 @@ export function AssetDetailModal({ assetId, onClose, onDeleted }: Props) {
               ))}
             </div>
             <div className="card-actions">
+              <button className="primary compact" onClick={() => { onLoad(asset); onClose(); }}>载入 Builder（副本）</button>
               <button className="ghost" onClick={exportJson}>导出 JSON</button>
               <button className="ghost" disabled={busy} onClick={archive}>{asset.status === "archived" ? "恢复 Active" : "归档"}</button>
               <button className="danger" disabled={busy} onClick={remove}>删除</button>
