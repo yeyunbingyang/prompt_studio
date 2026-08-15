@@ -20,6 +20,7 @@ export type CreateAssetInput = {
   description?: string;
   positive_prompt?: string;
   negative_prompt?: string;
+  structured_parameters?: Record<string, unknown>;
 };
 
 export type UpdateAssetInput = {

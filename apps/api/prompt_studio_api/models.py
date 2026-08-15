@@ -34,6 +34,7 @@ class AssetCreate(BaseModel):
     positive_prompt: str = ""
     negative_prompt: str | None = None
     language: str = "zh-CN"
+    structured_parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class AssetUpdate(BaseModel):

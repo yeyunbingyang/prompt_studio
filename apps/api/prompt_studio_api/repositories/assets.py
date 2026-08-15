@@ -51,7 +51,7 @@ def create_asset(payload: AssetCreate) -> str:
                 payload.language,
                 payload.positive_prompt,
                 payload.negative_prompt,
-                json.dumps({}, ensure_ascii=False),
+                json.dumps(payload.structured_parameters, ensure_ascii=False),
                 1,
             ),
         )

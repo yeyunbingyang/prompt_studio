@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.2 - Visual Parameters System
+
+### Added
+- 图片 Builder 升级为数据驱动的 Visual Parameters System。
+- 首批 10 个参数组 / 100 个图片视觉参数。
+- Basic / Advanced / Professional 三层参数导航。
+- 参数组折叠、单选 / 多选语义、已选统计与组合摘要。
+- 每个视觉选项绑定稳定 ID、中文 / 英文名称、说明与双语 Prompt Fragment。
+- `structured_parameters` 通过 FastAPI 写入 SQLite Prompt Variant，并可完整读取恢复。
+- V0.3.1 模板与旧草稿参数自动映射到稳定 Visual Parameter ID。
+- 结构化参数 Round Trip API 测试。
+- `docs/specs/VISUAL_PARAMETERS_SPEC.md` 参数规范。
+
+### Changed
+- 图片 Prompt 不再依赖 `composition / lighting / style` 三个硬编码数组。
+- Prompt 文本改为 Visual Parameter 结构化状态的派生输出。
+- `.aipack.json` 导出版本升级为 V0.3.2，并携带结构化视觉参数。
+
+### Architecture
+- SQLite 继续只存 metadata / JSON；图片预览和大型媒体不写入 `structured_parameters`。
+- 后续效果缩略图、模型兼容性、强度、Template Editor 和 ComfyUI 节点绑定均基于稳定参数 ID 扩展。
+
 ## 0.3.1 - Prototype Parity
 
 ### Added
