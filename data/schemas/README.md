@@ -1,9 +1,10 @@
-# Schemas
+# JSON Schemas
 
-此目录将存放稳定的数据交换 Schema，例如：
+V0.3 交换格式源：
+
 - `creation-asset.schema.json`
 - `template.schema.json`
 - `workflow.schema.json`
-- `pack-manifest.schema.json`
+- `share-pack.schema.json`
 
-Schema 进入 V0.3 开发前补齐第一版。
+原则：数据库结构可以演进，但导入/导出必须通过显式 `schema_version` / `pack_version` 做兼容处理。

@@ -1,5 +1,10 @@
-# apps/web
+# Prompt Studio Web
 
-正式 Web UI / 桌面前端预留目录。V0.3 开始创建工程脚手架。
+V0.3 正式前端，不是 V0.2 静态原型。
 
-当前请查看 `prototype/v0.2`，不要把 prototype 代码直接视为生产架构。
+```powershell
+npm install
+npm run dev:web
+```
+
+当前 Dashboard 已连接 Local API，可查看健康状态、搜索 Creation Asset 并创建本地资产。

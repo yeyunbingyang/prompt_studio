@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prompt-studio.local/schemas/workflow.schema.json",
+  "title": "Prompt Studio Workflow",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "position",
+          "config"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "config": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "source_port": {
+            "type": "string"
+          },
+          "target_port": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "adapter_payloads": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

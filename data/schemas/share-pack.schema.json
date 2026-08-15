@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prompt-studio.local/schemas/share-pack.schema.json",
+  "title": "Creation Pack Manifest",
+  "type": "object",
+  "required": [
+    "pack_version",
+    "exported_at",
+    "asset"
+  ],
+  "properties": {
+    "pack_version": {
+      "const": "0.3"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "asset": {
+      "$ref": "creation-asset.schema.json"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "media_type": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "secrets_included": {
+      "const": false
+    }
+  },
+  "additionalProperties": false
+}

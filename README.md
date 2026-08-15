@@ -1,65 +1,118 @@
-# Prompt Studio CN / 提示工坊
+# Prompt Studio CN
 
-**本地优先的多模态 AI 创作资产工作台。**
+> 本地优先的多模态 AI 创作资产工作台。  
+> 当前阶段：**V0.3 Engineering Skeleton**
 
-Prompt Studio CN 的目标不是只保存几段提示词，而是把 **Prompt、参数、参考图、效果图、模型配置、工作流、输出案例和版本历史** 组织成可复用、可分享的 `Creation Asset`。
+Prompt Studio CN 不把 Prompt 当作孤立文本，而是把 Prompt、参数、模型、参考图、效果图、Workflow、输出结果和版本统一组织为 **Creation Asset**。
 
-> 当前仓库状态：**产品定义 / 架构奠基阶段**。现有 V0.2 为交互原型，不代表最终技术实现。
+## 当前状态
 
-## 产品方向
+- `prototype/v0.2/`：保留的产品/UI 原型
+- `apps/web/`：V0.3 React + TypeScript + Vite 正式前端
+- `apps/api/`：V0.3 FastAPI 本地服务
+- `packages/core/`：与 UI/第三方无关的领域模型与 Prompt 组合逻辑
+- `data/migrations/`：SQLite 数据库迁移
+- `data/schemas/`：Creation Asset / Template / Workflow / Share Pack JSON Schema
+- `docs/`：PRD、架构、规格、研究和开发文档
 
-- **70% 本地 AI 创作工作台**：隐私、本地资产、模板、工作流、模型适配。
-- **30% 分享与社区能力**：导入导出、Fork、Creation Pack，后续再扩展在线发布。
-- 多模态：图片、视频、3D、音频，未来可扩展 LLM Prompt、Agent 与 Skill。
-- 本地优先：核心资产默认留在用户设备，云服务是可选增强而非前置条件。
+V0.3 已经是可启动工程，不再只是静态页面：Web 会连接本地 API，API 自动初始化 SQLite，并支持 Creation Asset 的基础 CRUD 与搜索。
 
-## 仓库结构
+## 环境要求
+
+- Node.js `20.19+`（或 `22.12+`）
+- npm `10+`
+- Python `3.10+`
+- Windows 10/11、macOS 或 Linux
+
+## Windows 快速启动
+
+首次：
+
+```powershell
+git pull origin main
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+```
+
+然后打开：
+
+- Web: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:8000`
+- OpenAPI: `http://127.0.0.1:8000/docs`
+
+以后开发只需要：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+```
+
+## 手动启动
+
+### API
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r apps\api\requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn prompt_studio_api.main:app --app-dir apps/api --reload --host 127.0.0.1 --port 8000
+```
+
+### Web
+
+```powershell
+npm install
+npm run dev:web
+```
+
+## V0.3 可用能力
+
+- API 健康检查
+- SQLite 首次运行自动建库
+- Creation Asset：创建、列表、搜索、读取、编辑、删除
+- Prompt Variant 随资产保存
+- React Dashboard 显示 API / 数据库状态
+- Web 快速创建图片/视频资产
+- Creation Asset JSON Schema
+- Template / Workflow / Share Pack Schema 基础版
+- Prompt Core：Prompt Fragment 组合与去空值
+- Core 单元测试
+- API 基础测试
+- Windows bootstrap/dev/check 脚本
+- ComfyUI Adapter 接口占位，不侵入 Domain Core
+
+## 数据位置
+
+默认用户数据不会写进 Git：
 
 ```text
-.
-├── apps/                     # 正式应用（V0.3+）
-│   └── web/                  # Web/桌面壳前端
-├── packages/                 # 可复用核心包
-│   ├── core/                 # Creation Asset / Template / Prompt Engine
-│   └── integrations/         # ComfyUI / 模型服务适配
-├── prototype/
-│   └── v0.2/                 # 当前可运行静态原型
-├── data/
-│   └── schemas/              # 数据交换 Schema
-└── docs/
-    ├── product/              # PRD、信息架构、页面、用户流、路线图
-    ├── architecture/         # 系统架构、数据模型、存储与集成
-    ├── specs/                # Creation Asset / Template / Workflow / Share Pack
-    ├── development/          # 开发、测试、发布规范
-    ├── research/             # 竞品和参考资料
-    └── decisions/            # Architecture Decision Records
+.prompt-studio/
+├── prompt_studio.db
+└── media/
+    ├── covers/
+    ├── references/
+    ├── outputs/
+    └── thumbnails/
 ```
 
-## 快速预览 V0.2 原型
+可以通过 `PS_DATA_DIR` 修改。
 
-```bash
-python -m http.server 8080
-```
+## 项目原则
 
-打开：`http://localhost:8080/prototype/v0.2/`
+1. Local-first。
+2. SQLite 存 metadata，大媒体放文件系统。
+3. Domain Core 不依赖 UI、FastAPI、ComfyUI 或具体模型。
+4. 外部服务通过 Adapter 接入。
+5. Token / Secret 不写入 Creation Pack。
+6. 原型与正式代码分离。
 
-也可以直接双击 `prototype/v0.2/index.html`。
+## 下一阶段
 
-## 文档入口
+V0.3 后续优先补齐：
 
-- [PRD](docs/product/PRD.md)
-- [产品愿景](docs/product/PRODUCT_VISION.md)
-- [页面与信息架构](docs/product/INFORMATION_ARCHITECTURE.md)
-- [系统架构](docs/architecture/SYSTEM_ARCHITECTURE.md)
-- [数据模型](docs/architecture/DATA_MODEL.md)
-- [Creation Asset 规范](docs/specs/CREATION_ASSET_SPEC.md)
-- [开发指南](docs/development/DEVELOPMENT_GUIDE.md)
-- [路线图](docs/product/ROADMAP.md)
+1. Template Editor
+2. 媒体导入与缩略图
+3. Creation Asset 版本点
+4. Workflow Graph CRUD
+5. ComfyUI 本地连接与 Run Record
+6. `.creationpack` 导入导出
 
-## 当前里程碑
-
-**M0 — Foundation**：完成产品定义、Schema、目录和开发规范。  
-**M1 — V0.3 Local Core**：SQLite + 本地文件资产 + 模板编辑器。  
-**M2 — V0.4 Workflow**：节点工作流 + ComfyUI 集成。  
-**M3 — V0.5 Share Pack**：Creation Pack 导出、导入和 Fork。  
-**M4 — V1.0**：稳定本地工作台。
+详见 `docs/product/ROADMAP.md` 与 `docs/product/PRD.md`。
